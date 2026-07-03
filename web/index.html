@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Nowoczesny kalkulator profitów dla Albion Online. Śledź ceny na żywo ze sniffera i obliczaj zysk z transportu na Czarny Rynek w Caerleon.">
+    <title>Albion Market Profit Calculator & Sniffer</title>
+    <!-- Główne czcionki z Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cinzel:wght@400;700;800&family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Ikony Lucide dla nowoczesnego designu -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- HEADER: Logo, Status sieciowy i pakiety -->
+        <header class="app-header">
+            <div class="header-logo">
+                <i data-lucide="leaf" class="logo-icon"></i>
+                <div class="logo-text">
+                    <h1>LEŚNE CENTRUM <span>DOWODZENIA</span></h1>
+                    <p class="logo-sub">Finansów Druida</p>
+                    </div>
+            </div>
+
+            <div class="header-status">
+                <div class="status-card" id="status-network">
+                    <div class="status-indicator" id="network-indicator"></div>
+                    <div class="status-details">
+                        <span class="status-label">POŁĄCZENIE WS</span>
+                        <span class="status-value" id="network-status-val">Rozłączony</span>
+                    </div>
+                </div>
+
+                <div class="status-card" id="status-packets">
+                    <i data-lucide="activity" class="status-icon pulsate"></i>
+                    <div class="status-details">
+                        <span class="status-label">PAKIETY LIVE</span>
+                        <span class="status-value" id="packet-count-val">0</span>
+                    </div>
+                </div>
+
+                <div class="status-card" id="status-server">
+                    <i data-lucide="globe" class="status-icon"></i>
+                    <div class="status-details">
+                        <span class="status-label">REGION SERWERA</span>
+                        <span class="status-value" id="server-region-val">Wykrywanie...</span>
+                    </div>
+                </div>
+
+                <button id="btn-donate" class="btn btn-donate">
+                    <i data-lucide="heart" class="btn-icon"></i>
+                    <span>DONATE</span>
+                </button>
+                <button id="btn-sync-api" class="btn btn-primary btn-glow">
+                    <i data-lucide="refresh-cw" class="btn-icon"></i>
+                    <span>Synchronizuj API</span>
+                </button>
+                <button id="btn-clear-db" class="btn btn-danger" style="background-color: var(--roi-high-bg, #ff5f56); border: 1px solid var(--roi-high-border, #ff5f56); color: #fff;">
+                    <i data-lucide="trash-2" class="btn-icon"></i>
+                    <span>Wyczyść całą bazę</span>
+                </button>
+                <button id="btn-shutdown" class="btn btn-danger" style="background-color: rgba(180, 0, 0, 0.8); border: 1px solid #cc0000; color: #ff6666;" title="Bezpiecznie zamyka serwer i zapisuje bazę danych">
+                    <i data-lucide="power" class="btn-icon"></i>
+                    <span>Zamknij</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- SIATKA GÓRNA: KONTROLER SNIFFERA + REKOMENDACJA MIASTA + CAŁKOWITY ZYSK -->
+        <div class="top-row-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <!-- KONTROLER SNIFFERA (Wybór karty sieciowej) -->
+            <!-- GLOBALNE FILTRY -->
+            <section class="card" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: center;">
+                <div class="section-title-row">
+                    <i data-lucide="filter" class="title-icon"></i>
+                    <h2>Filtry Globalne</h2>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 5px;">
+                    <div class="control-group">
+                        <label for="select-manual-city" style="color: var(--color-accent); font-weight: bold; font-size: 0.85rem;">Lokalizacja (Tu jesteś)</label>
+                        <div class="select-wrapper">
+                            <select id="select-manual-city" style="border-color: var(--color-accent); padding: 4px 8px; font-size: 0.85rem;">
+                                <option value="3008">Lymhurst</option>
+                                <option value="2004">Fort Sterling</option>
+                                <option value="1002">Thetford</option>
+                                <option value="3002">Martlock</option>
+                                <option value="1004">Bridgewatch</option>
+                                <option value="3005">Caerleon</option>
+                                <option value="3003">Black Market</option>
+                                <option value="5003">Brecilien</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 6px; justify-content: center;">
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="checkbox" id="filter-profitable-only" checked style="width: 16px; height: 16px; accent-color: var(--success);">
+                            <span style="font-size: 0.8rem; font-weight: 600; color: var(--success);">Tylko zyskowne</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="filter-resources-only" style="width: 18px; height: 18px; accent-color: var(--color-accent);">
+                            <span style="font-size: 0.85rem; font-weight: bold; color: var(--color-accent);">Tylko Surowce</span>
+                        </label>
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- KAFELEK NAJLEPSZEGO MIASTA (PRZESUWALNY) -->
+            <section class="best-city-card card" style="display: flex; flex-direction: column; justify-content: space-between; height: 100%; border-left: 4px solid var(--success, #00ff66); background: linear-gradient(135deg, rgba(0, 255, 102, 0.03) 0%, rgba(13, 14, 21, 0) 100%); margin-bottom: 0; padding: 1.15rem; position: relative; overflow: hidden; min-width: 0;">
+                <div class="section-title-row" style="margin-bottom: 0.25rem; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <i data-lucide="trophy" class="title-icon" style="color: #ffaa00;"></i>
+                        <h2 style="font-size: 1.1rem; font-weight: bold; color: var(--text, #fff); margin-bottom: 0;">Rekomendacja Miasta</h2>
+                        <button id="btn-refresh-recommendation" class="btn-icon-only" style="background: rgba(255,255,255,0.05); border: none; color: #fff; cursor: pointer; padding: 4px; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" title="Odśwież rekomendację"><i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i></button>
+                    </div>
+                    <!-- Przyciski nawigacji slajdu -->
+                    <div style="display: flex; gap: 0.25rem;">
+                        <button id="rec-prev-btn" class="btn-icon-only" style="background: rgba(255,255,255,0.05); border: none; color: #fff; cursor: pointer; padding: 4px; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"><i data-lucide="chevron-left" style="width: 16px; height: 16px;"></i></button>
+                        <button id="rec-next-btn" class="btn-icon-only" style="background: rgba(255,255,255,0.05); border: none; color: #fff; cursor: pointer; padding: 4px; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"><i data-lucide="chevron-right" style="width: 16px; height: 16px;"></i></button>
+                    </div>
+                </div>
+                
+                <!-- Kontener slajdów (Przesuwany horyzontalnie za pomocą CSS transition) -->
+                <div class="rec-slides-wrapper" style="position: relative; width: 100%; height: 140px; overflow: hidden; margin: 0.25rem 0;">
+                    <div class="rec-slides-container" id="rec-slides-container" style="display: flex; width: 200%; height: 100%; transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); transform: translateX(0);">
+                        
+                        <!-- SLAJD 1: SZYBKA SPRZEDAŻ -->
+                        <div class="rec-slide" style="width: 50%; height: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; flex-shrink: 0; padding: 0 5px;">
+                            <span style="font-size: 0.72rem; color: #ffaa00; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Szybka Sprzedaż (Instant)</span>
+                            <div style="display: flex; flex-direction: column; align-items: center;">
+                                <div id="best-city-name-buy" style="font-size: 1.25rem; font-weight: 800; color: #fff; line-height: 1.1; margin-bottom: 2px;">Brak danych</div>
+                                <div id="best-city-profit-buy" style="font-size: 1.45rem; font-weight: 900; color: var(--success, #00ff66); letter-spacing: -0.5px; text-shadow: 0 0 15px rgba(0, 255, 102, 0.3);">0 <small style="font-size: 0.8rem;">sreb.</small></div>
+                            </div>
+                            <!-- Inne miasta w kolejności opłacalności -->
+                            <div id="other-cities-container-buy" style="display: flex; gap: 4px; justify-content: center; width: 100%; margin-top: 4px; flex-wrap: wrap; max-height: 48px; overflow-y: auto;">
+                                <!-- Dynamicznie generowane małe odznaki miast -->
+                            </div>
+                        </div>
+                        
+                        <!-- SLAJD 2: ZLECENIA SPRZEDAŻY -->
+                        <div class="rec-slide" style="width: 50%; height: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; flex-shrink: 0; padding: 0 5px;">
+                            <span style="font-size: 0.72rem; color: #00ffcc; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Zlecenie Sprzedaży (Order)</span>
+                            <div style="display: flex; flex-direction: column; align-items: center;">
+                                <div id="best-city-name-sell" style="font-size: 1.25rem; font-weight: 800; color: #fff; line-height: 1.1; margin-bottom: 2px;">Brak danych</div>
+                                <div id="best-city-profit-sell" style="font-size: 1.45rem; font-weight: 900; color: #00ffcc; letter-spacing: -0.5px; text-shadow: 0 0 15px rgba(0, 255, 204, 0.3);">0 <small style="font-size: 0.8rem;">sreb.</small></div>
+                            </div>
+                            <!-- Inne miasta w kolejności opłacalności -->
+                            <div id="other-cities-container-sell" style="display: flex; gap: 4px; justify-content: center; width: 100%; margin-top: 4px; flex-wrap: wrap; max-height: 48px; overflow-y: auto;">
+                                <!-- Dynamicznie generowane małe odznaki miast -->
+                            </div>
+                        </div>
+                        
+                    </div>
+                </div>
+                
+                <!-- Wskaźniki kropek (dots) na dole -->
+                <div style="display: flex; justify-content: center; gap: 0.35rem; margin-top: 0.15rem; width: 100%;">
+                    <span id="rec-dot-0" class="rec-dot active" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; cursor: pointer; opacity: 1; transition: all 0.2s;"></span>
+                    <span id="rec-dot-1" class="rec-dot" style="width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.2); cursor: pointer; opacity: 0.5; transition: all 0.2s;"></span>
+                </div>
+            </section>
+            
+            <!-- NOWY KAFELEK: TOTAL POTENTIAL PROFIT -->
+            <section class="total-profit-card card" style="display: flex; flex-direction: column; justify-content: center; align-items: center; border-left: 4px solid #ffaa00; background: linear-gradient(135deg, rgba(255, 170, 0, 0.05) 0%, rgba(13, 14, 21, 0) 100%); padding: 1.15rem; text-align: center;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                    <i data-lucide="coins" style="color: #ffaa00; width: 24px; height: 24px;"></i>
+                    <h2 style="font-size: 1.1rem; font-weight: bold; color: #fff; margin-bottom: 0;">Teraz możesz zarobić</h2>
+                </div>
+                <div id="total-potential-profit" style="font-size: 1.8rem; font-weight: 900; color: #00ff66; text-shadow: 0 0 20px rgba(0, 255, 102, 0.4); margin-bottom: 0.5rem;">0 <small style="font-size: 1rem;">sreb.</small></div>
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 0;">Suma zysku netto ze wszystkich<br>wykrytych okazji rynkowych</p>
+                <div id="total-opportunities-count" style="margin-top: 1rem; font-size: 0.75rem; color: #ffaa00; font-weight: bold; text-transform: uppercase;">0 okazji w bazie</div>
+            </section>
+        </div>
+
+
+
+        <!-- GŁÓWNA NAWIGACJA TRYBÓW -->
+        <nav class="main-mode-nav" style="display: flex; gap: 20px; margin-bottom: 25px; padding: 0 5px;">
+            <button class="mode-btn active" data-mode="trading">
+                <i data-lucide="arrow-left-right" class="mode-icon"></i>
+                <div class="mode-text">
+                    <span class="mode-title">TRADING</span>
+                    <span class="mode-desc">Handel & Arbitraż</span>
+                </div>
+            </button>
+            <button class="mode-btn" data-mode="refining">
+                <i data-lucide="zap" class="mode-icon" style="color: #8a8aff;"></i>
+                <div class="mode-text">
+                    <span class="mode-title">REFINING</span>
+                    <span class="mode-desc">Przetwarzanie Surowców</span>
+                </div>
+            </button>
+            <button class="mode-btn" data-mode="crafting">
+                <i data-lucide="hammer" class="mode-icon" style="color: #ffaa00;"></i>
+                <div class="mode-text">
+                    <span class="mode-title">CRAFTING</span>
+                    <span class="mode-desc">Wytwarzanie Przedmiotów</span>
+                </div>
+            </button>
+        </nav>
+
+        <!-- GŁÓWNA STRUKTURA: Filtry, Kalkulator i Logi -->
+        <main class="app-main">
+            <!-- LEWA SEKCJA: Kalkulator i Tabela -->
+            <section class="calculator-section flex-grow">
+
+                <!-- TRYB: TRADING -->
+                <div class="mode-content active" id="mode-trading-nav">
+                    <div class="tabs-nav">
+                        <button class="tab-btn" data-tab="investment-summary" style="background: rgba(74, 222, 128, 0.1); border-color: var(--color-accent); font-weight: 800;">
+                            <i data-lucide="pie-chart" class="tab-icon" style="color: var(--color-accent);"></i>
+                            Podsumowanie
+                        </button>
+                        <button class="tab-btn" data-tab="calculator">
+                            <i data-lucide="trending-up" class="tab-icon"></i>
+                            Kalkulator
+                        </button>
+                        <div class="wizard-menu-sep" style="height: 20px; width: 1px; background: rgba(255,255,255,0.1); margin: 0 10px;"></div>
+                        <button class="tab-btn active" data-tab="live-feed">
+                            <i data-lucide="radio" class="tab-icon"></i>
+                            Live Feed
+                            <span class="tab-badge" id="live-feed-count">0</span>
+                        </button>
+                        <button class="tab-btn" data-tab="black-market">
+                            <i data-lucide="shield-alert" class="tab-icon"></i>
+                            Black Market
+                            <span class="tab-badge" id="black-market-count">0</span>
+                        </button>
+                        <div class="wizard-menu-sep" style="height: 20px; width: 1px; background: rgba(255,255,255,0.1); margin: 0 10px;"></div>
+                        <button class="tab-btn" data-tab="lymhurst">
+                            <i data-lucide="tree-pine" class="tab-icon"></i>
+                            Lymhurst
+                            <span class="tab-badge" id="lymhurst-count">0</span>
+                        </button>
+                        <button class="tab-btn" data-tab="bridgewatch">
+                            <i data-lucide="compass" class="tab-icon"></i>
+                            Bridgewatch
+                            <span class="tab-badge" id="bridgewatch-count">0</span>
+                        </button>
+                        <button class="tab-btn" data-tab="martlock">
+                            <i data-lucide="shield" class="tab-icon"></i>
+                            Martlock
+                            <span class="tab-badge" id="martlock-count">0</span>
+                        </button>
+                        <button class="tab-btn" data-tab="thetford">
+                            <i data-lucide="droplet" class="tab-icon"></i>
+                            Thetford
+                            <span class="tab-badge" id="thetford-count">0</span>
+                        </button>
+                        <button class="tab-btn" data-tab="fort-sterling">
+                            <i data-lucide="snowflake" class="tab-icon"></i>
+                            Fort Sterling
+                            <span class="tab-badge" id="fort-sterling-count">0</span>
+                        </button>
+                        <button class="tab-btn" data-tab="caerleon">
+                            <i data-lucide="skull" class="tab-icon"></i>
+                            Caerleon
+                            <span class="tab-badge" id="caerleon-count">0</span>
+                        </button>
+                        <button class="tab-btn" data-tab="brecilien">
+                            <i data-lucide="sparkles" class="tab-icon"></i>
+                            Brecilien
+                            <span class="tab-badge" id="brecilien-count">0</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- TRYB: REFINING (Nawigacja wewnętrzna jeśli potrzebna) -->
+                <div class="mode-content" id="mode-refining-nav">
+                    <div class="tabs-nav" style="background: linear-gradient(90deg, rgba(81, 81, 229, 0.1), rgba(0,0,0,0.5)); border-color: #5151e5;">
+                        <button class="tab-btn active" data-tab="refining">
+                            <i data-lucide="zap" class="tab-icon" style="color: #8a8aff;"></i>
+                            Kalkulator Przetwarzania (Refining)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- TRYB: CRAFTING -->
+                <div class="mode-content" id="mode-crafting-nav">
+                    <div class="tabs-nav" style="background: linear-gradient(90deg, rgba(255, 170, 0, 0.1), rgba(0,0,0,0.5)); border-color: #ffaa00;">
+                        <button class="tab-btn active" data-tab="crafting">
+                            <i data-lucide="hammer" class="tab-icon" style="color: #ffaa00;"></i>
+                            Kalkulator Wytwarzania (Crafting)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ZAKŁADKA: LIVE FEED -->
+                <div class="tab-content active" id="tab-live-feed">
+                    <div class="table-card card">
+                        <div class="table-header-row">
+                            <div class="table-info">
+                                <h3>Przechwycone Ceny — Live Arbitrage</h3>
+                                <p>Szybka analiza zysków z transportu dla przedmiotów właśnie przeglądanych na rynku</p>
+                            </div>
+                            <button id="btn-clear-feed" class="btn btn-sm btn-dark">
+                                <i data-lucide="trash-2" class="btn-icon"></i>
+                                Wyczyść
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table id="live-feed-table">
+                                <thead>
+                                    <tr>
+                                        <th>Przedmiot</th>
+                                        <th>Kupno (Miasto)</th>
+                                        <th>Sprzedaż (BM)</th>
+                                        <th>Koszt Podatku</th>
+                                        <th>Zysk Netto</th>
+                                        <th>ROI %</th>
+                                        <th>Czas</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="live-feed-body">
+                                    <tr>
+                                        <td colspan="7" class="table-placeholder">
+                                            <div class="placeholder-content">
+                                                <i data-lucide="radio" class="placeholder-icon"></i>
+                                                <p>Oczekiwanie na dane z sniffera... Otwórz tablicę rynku w mieście królewskim.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ZAKŁADKA: BLACK MARKET -->
+                <div class="tab-content" id="tab-black-market">
+                    <div class="table-card card">
+                        <div class="table-header-row">
+                            <div class="table-info">
+                                <h3>Real-time Black Market Orders</h3>
+                                <p>Zlecenia kupna wystawione przez system Czarnego Rynku w Caerleonie</p>
+                            </div>
+                            <button id="btn-clear-bm" class="btn btn-sm btn-dark">
+                                <i data-lucide="trash-2" class="btn-icon"></i>
+                                Wyczyść
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table id="black-market-table">
+                                <thead>
+                                    <tr>
+                                        <th>Przedmiot</th>
+                                        <th>Cena BM</th>
+                                        <th>Ilość</th>
+                                        <th>Jakość</th>
+                                        <th>Czas Aktualizacji</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="black-market-body">
+                                    <tr>
+                                        <td colspan="5" class="table-placeholder">
+                                            <div class="placeholder-content">
+                                                <i data-lucide="shield-alert" class="placeholder-icon"></i>
+                                                <p>Oczekiwanie na pakiety z Czarnego Rynku... Otwórz tablicę Czarnego Rynku w Caerleonie (wymagane ustawienie lokalizacji: Black Market).</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ZAKŁADKA: LYMHURST -->
+                <div class="tab-content" id="tab-lymhurst">
+                    <div class="table-card card">
+                        <div class="table-header-row">
+                            <div class="table-info">
+                                <h3>Ceny w Lymhurst</h3>
+                                <p>Przedmioty przechwycone na rynku w Lymhurst</p>
+                            </div>
+                            <button class="btn btn-sm btn-dark btn-clear-city" data-city="3008">
+                                <i data-lucide="trash-2" class="btn-icon"></i>
+                                Wyczyść
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="city-prices-table">
+                                <thead>
+                                    <tr>
+                                        <th>Przedmiot</th>
+                                        <th>Cena</th>
+                                        <th>Ilość</th>
+                                        <th>Jakość</th>
+                                        <th>Czas Aktualizacji</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="body-prices-3008">
+                                    <tr>
+                                        <td colspan="4" class="table-placeholder">
+                                            <div class="placeholder-content">
+                                                <i data-lucide="tree-pine" class="placeholder-icon"></i>
+                                                <p>Oczekiwanie na dane z Lymhurst... Otwórz tablicę rynku w Lymhurst.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    <div class="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px;">
+                        <button id="btn-prev-body-prices-3008" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;"><i data-lucide="chevron-left" style="width:16px;height:16px;"></i> Poprzednia</button>
+                        <span id="indicator-body-prices-3008" style="font-weight: bold; color: var(--text-primary);">Strona 1 z 1</span>
+                        <button id="btn-next-body-prices-3008" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;">Następna <i data-lucide="chevron-right" style="width:16px;height:16px;"></i></button>
+                    </div>
+                    </div>
+                    
+                    <div class="table-card card" style="margin-top: 20px;">
+                        <div class="table-header-row">
+                            <div class="table-info">
+                                <h3>Kalkulator Transportu: Lymhurst → Czarny Rynek</h3>
+                                <p>Wyliczenia zysków ze sprzedaży tych przedmiotów na Czarnym Rynku (Caerleon)</p>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="city-profit-table">
+                                <thead>
+                                    <tr>
+                                        <th>Przedmiot</th>
+                                        <th class="city-price-header">Cena w mieście</th>
+                                        <th>Ilość</th>
+                                        <th>Cena BM (Caerleon)</th>
+                                        <th>Podatek 8%</th>
+                                        <th>Zysk Netto</th>
+                                        <th>ROI %</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="body-profit-3008">
+                                    <tr>
+                                        <td colspan="6" class="table-placeholder">
+                                            <div class="placeholder-content">
+                                                <i data-lucide="trending-up" class="placeholder-icon"></i>
+                                                <p>Brak danych do wyliczenia zysku. Wyszukaj przedmioty w Lymhurst oraz na Czarnym Rynku.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    <div class="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px;">
+                        <button id="btn-prev-body-profit-3008" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;"><i data-lucide="chevron-left" style="width:16px;height:16px;"></i> Poprzednia</button>
+                        <span id="indicator-body-profit-3008" style="font-weight: bold; color: var(--text-primary);">Strona 1 z 1</span>
+                        <button id="btn-next-body-profit-3008" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;">Następna <i data-lucide="chevron-right" style="width:16px;height:16px;"></i></button>
+                    </div>
+                    </div>
+                </div>
+
+                <!-- ZAKŁADKA: BRIDGEWATCH -->
+                <div class="tab-content" id="tab-bridgewatch">
+                    <div class="table-card card">
+                        <div class="table-header-row">
+                            <div class="table-info">
+                                <h3>Ceny w Bridgewatch</h3>
+                                <p>Przedmioty przechwycone na rynku w Bridgewatch</p>
+                            </div>
+                            <button class="btn btn-sm btn-dark btn-clear-city" data-city="1004">
+                                <i data-lucide="trash-2" class="btn-icon"></i>
+                                Wyczyść
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="city-prices-table">
+                                <thead>
+                                    <tr>
+                                        <th>Przedmiot</th>
+                                        <th>Cena</th>
+                                        <th>Ilość</th>
+                                        <th>Jakość</th>
+                                        <th>Czas Aktualizacji</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="body-prices-1004">
+                                    <tr>
+                                        <td colspan="4" class="table-placeholder">
+                                            <div class="placeholder-content">
+                                                <i data-lucide="compass" class="placeholder-icon"></i>
+                                                <p>Oczekiwanie na dane z Bridgewatch... Otwórz tablicę rynku w Bridgewatch.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    <div class="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px;">
+                        <button id="btn-prev-body-prices-1004" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;"><i data-lucide="chevron-left" style="width:16px;height:16px;"></i> Poprzednia</button>
+                        <span id="indicator-body-prices-1004" style="font-weight: bold; color: var(--text-primary);">Strona 1 z 1</span>
+                        <button id="btn-next-body-prices-1004" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;">Następna <i data-lucide="chevron-right" style="width:16px;height:16px;"></i></button>
+                    </div>
+                    </div>
+                    
+                    <div class="table-card card" style="margin-top: 20px;">
+                        <div class="table-header-row">
+                            <div class="table-info">
+                                <h3>Kalkulator Transportu: Bridgewatch → Czarny Rynek</h3>
+                                <p>Wyliczenia zysków ze sprzedaży tych przedmiotów na Czarnym Rynku (Caerleon)</p>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="city-profit-table">
+                                <thead>
+                                    <tr>
+                                        <th>Przedmiot</th>
+                                        <th class="city-price-header">Cena w mieście</th>
+                                        <th>Ilość</th>
+                                        <th>Cena BM (Caerleon)</th>
+                                        <th>Podatek 8%</th>
+                                        <th>Zysk Netto</th>
+                                        <th>ROI %</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="body-profit-1004">
+                                    <tr>
+                                        <td colspan="6" class="table-placeholder">
+                                            <div class="placeholder-content">
+                                                <i data-lucide="trending-up" class="placeholder-icon"></i>
+                                                <p>Brak danych do wyliczenia zysku. Wyszukaj przedmioty w Bridgewatch oraz na Czarnym Rynku.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    <div class="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px;">
+                        <button id="btn-prev-body-profit-1004" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;"><i data-lucide="chevron-left" style="width:16px;height:16px;"></i> Poprzednia</button>
+                        <span id="indicator-body-profit-1004" style="font-weight: bold; color: var(--text-primary);">Strona 1 z 1</span>
+                        <button id="btn-next-body-profit-1004" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;">Następna <i data-lucide="chevron-right" style="width:16px;height:16px;"></i></button>
+                    </div>
+                    </div>
+                </div>
+
+                <!-- ZAKŁADKA: MARTLOCK -->
+                <div class="tab-content" id="tab-martlock">
+                    <div class="table-card card">
+                        <div class="table-header-row">
+                            <div class="table-info">
+                                <h3>Ceny w Martlock</h3>
+                                <p>Przedmioty przechwycone na rynku w Martlock</p>
+                            </div>
+                            <button class="btn btn-sm btn-dark btn-clear-city" data-city="3002">
+                                <i data-lucide="trash-2" class="btn-icon"></i>
+                                Wyczyść
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="city-prices-table">
+                                <thead>
+                                    <tr>
+                                        <th>Przedmiot</th>
+                                        <th>Cena</th>
+                                        <th>Ilość</th>
+                                        <th>Jakość</th>
+                                        <th>Czas Aktualizacji</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="body-prices-3002">
+                                    <tr>
+                                        <td colspan="4" class="table-placeholder">
+                                            <div class="placeholder-content">
+                                                <i data-lucide="shield" class="placeholder-icon"></i>
+                                                <p>Oczekiwanie na dane z Martlock... Otwórz tablicę rynku w Martlock.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    <div class="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px;">
+                        <button id="btn-prev-body-prices-3002" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;"><i data-lucide="chevron-left" style="width:16px;height:16px;"></i> Poprzednia</button>
+                        <span id="indicator-body-prices-3002" style="font-weight: bold; color: var(--text-primary);">Strona 1 z 1</span>
+                        <button id="btn-next-body-prices-3002" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;">Następna <i data-lucide="chevron-right" style="width:16px;height:16px;"></i></button>
+                    </div>
+                    </div>
+                    
+                    <div class="table-card card" style="margin-top: 20px;">
+                        <div class="table-header-row">
+                            <div class="table-info">
+                                <h3>Kalkulator Transportu: Martlock → Czarny Rynek</h3>
+                                <p>Wyliczenia zysków ze sprzedaży tych przedmiotów na Czarnym Rynku (Caerleon)</p>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="city-profit-table">
+                                <thead>
+                                    <tr>
+                                        <th>Przedmiot</th>
+                                        <th class="city-price-header">Cena w mieście</th>
+                                        <th>Ilość</th>
+                                        <th>Cena BM (Caerleon)</th>
+                                        <th>Podatek 8%</th>
+                                        <th>Zysk Netto</th>
+                                        <th>ROI %</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="body-profit-3002">
+                                    <tr>
+                                        <td colspan="6" class="table-placeholder">
+                                            <div class="placeholder-content">
+                                                <i data-lucide="trending-up" class="placeholder-icon"></i>
+                                                <p>Brak danych do wyliczenia zysku. Wyszukaj przedmioty w Martlock oraz na Czarnym Rynku.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    <div class="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px;">
+                        <button id="btn-prev-body-profit-3002" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;"><i data-lucide="chevron-left" style="width:16px;height:16px;"></i> Poprzednia</button>
+                        <span id="indicator-body-profit-3002" style="font-weight: bold; color: var(--text-primary);">Strona 1 z 1</span>
+                        <button id="btn-next-body-profit-3002" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;">Następna <i data-lucide="chevron-right" style="width:16px;height:16px;"></i></button>
+                    </div>
+                    </div>
+                </div>
+
+                <!-- ZAKŁADKA: THETFORD -->
+                <div class="tab-content" id="tab-thetford">
+                    <div class="table-card card">
+                        <div class="table-header-row">
+                            <div class="table-info">
+                                <h3>Ceny w Thetford</h3>
+                                <p>Przedmioty przechwycone na rynku w Thetford</p>
+                            </div>
+                            <button class="btn btn-sm btn-dark btn-clear-city" data-city="1002">
+                                <i data-lucide="trash-2" class="btn-icon"></i>
+                                Wyczyść
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="city-prices-table">
+                                <thead>
+                                    <tr>
+                                        <th>Przedmiot</th>
+                                        <th>Cena</th>
+                                        <th>Ilość</th>
+                                        <th>Jakość</th>
+                                        <th>Czas Aktualizacji</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="body-prices-1002">
+                                    <tr>
+                                        <td colspan="4" class="table-placeholder">
+                                            <div class="placeholder-content">
+                                                <i data-lucide="droplet" class="placeholder-icon"></i>
+                                                <p>Oczekiwanie na dane z Thetford... Otwórz tablicę rynku w Thetford.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    <div class="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px;">
+                        <button id="btn-prev-body-prices-1002" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;"><i data-lucide="chevron-left" style="width:16px;height:16px;"></i> Poprzednia</button>
+                        <span id="indicator-body-prices-1002" style="font-weight: bold; color: var(--text-primary);">Strona 1 z 1</span>
+                        <button id="btn-next-body-prices-1002" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;">Następna <i data-lucide="chevron-right" style="width:16px;height:16px;"></i></button>
+                    </div>
+                    </div>
+                    
+                    <div class="table-card card" style="margin-top: 20px;">
+                        <div class="table-header-row">
+                            <div class="table-info">
+                                <h3>Kalkulator Transportu: Thetford → Czarny Rynek</h3>
+                                <p>Wyliczenia zysków ze sprzedaży tych przedmiotów na Czarnym Rynku (Caerleon)</p>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="city-profit-table">
+                                <thead>
+                                    <tr>
+                                        <th>Przedmiot</th>
+                                        <th class="city-price-header">Cena w mieście</th>
+                                        <th>Ilość</th>
+                                        <th>Cena BM (Caerleon)</th>
+                                        <th>Podatek 8%</th>
+                                        <th>Zysk Netto</th>
+                                        <th>ROI %</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="body-profit-1002">
+                                    <tr>
+                                        <td colspan="6" class="table-placeholder">
+                                            <div class="placeholder-content">
+                                                <i data-lucide="trending-up" class="placeholder-icon"></i>
+                                                <p>Brak danych do wyliczenia zysku. Wyszukaj przedmioty w Thetford oraz na Czarnym Rynku.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    <div class="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px;">
+                        <button id="btn-prev-body-profit-1002" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;"><i data-lucide="chevron-left" style="width:16px;height:16px;"></i> Poprzednia</button>
+                        <span id="indicator-body-profit-1002" style="font-weight: bold; color: var(--text-primary);">Strona 1 z 1</span>
+                        <button id="btn-next-body-profit-1002" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;">Następna <i data-lucide="chevron-right" style="width:16px;height:16px;"></i></button>
+                    </div>
+                    </div>
+                </div>
+
+                <!-- ZAKŁADKA: FORT STERLING -->
+                <div class="tab-content" id="tab-fort-sterling">
+                    <div class="table-card card">
+                        <div class="table-header-row">
+                            <div class="table-info">
+                                <h3>Ceny w Fort Sterling</h3>
+                                <p>Przedmioty przechwycone na rynku w Fort Sterling</p>
+                            </div>
+                            <button class="btn btn-sm btn-dark btn-clear-city" data-city="2004">
+                                <i data-lucide="trash-2" class="btn-icon"></i>
+                                Wyczyść
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="city-prices-table">
+                                <thead>
+                                    <tr>
+                                        <th>Przedmiot</th>
+                                        <th>Cena</th>
+                                        <th>Ilość</th>
+                                        <th>Jakość</th>
+                                        <th>Czas Aktualizacji</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="body-prices-2004">
+                                    <tr>
+                                        <td colspan="4" class="table-placeholder">
+                                            <div class="placeholder-content">
+                                                <i data-lucide="snowflake" class="placeholder-icon"></i>
+                                                <p>Oczekiwanie na dane z Fort Sterling... Otwórz tablicę rynku w Fort Sterling.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    <div class="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px;">
+                        <button id="btn-prev-body-prices-2004" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;"><i data-lucide="chevron-left" style="width:16px;height:16px;"></i> Poprzednia</button>
+                        <span id="indicator-body-prices-2004" style="font-weight: bold; color: var(--text-primary);">Strona 1 z 1</span>
+                        <button id="btn-next-body-prices-2004" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;">Następna <i data-lucide="chevron-right" style="width:16px;height:16px;"></i></button>
+                    </div>
+                    </div>
+                    
+                    <div class="table-card card" style="margin-top: 20px;">
+                        <div class="table-header-row">
+                            <div class="table-info">
+                                <h3>Kalkulator Transportu: Fort Sterling → Czarny Rynek</h3>
+                                <p>Wyliczenia zysków ze sprzedaży tych przedmiotów na Czarnym Rynku (Caerleon)</p>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="city-profit-table">
+                                <thead>
+                                    <tr>
+                                        <th>Przedmiot</th>
+                                        <th class="city-price-header">Cena w mieście</th>
+                                        <th>Ilość</th>
+                                        <th>Cena BM (Caerleon)</th>
+                                        <th>Podatek 8%</th>
+                                        <th>Zysk Netto</th>
+                                        <th>ROI %</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="body-profit-2004">
+                                    <tr>
+                                        <td colspan="6" class="table-placeholder">
+                                            <div class="placeholder-content">
+                                                <i data-lucide="trending-up" class="placeholder-icon"></i>
+                                                <p>Brak danych do wyliczenia zysku. Wyszukaj przedmioty w Fort Sterling oraz na Czarnym Rynku.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    <div class="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px;">
+                        <button id="btn-prev-body-profit-2004" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;"><i data-lucide="chevron-left" style="width:16px;height:16px;"></i> Poprzednia</button>
+                        <span id="indicator-body-profit-2004" style="font-weight: bold; color: var(--text-primary);">Strona 1 z 1</span>
+                        <button id="btn-next-body-profit-2004" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;">Następna <i data-lucide="chevron-right" style="width:16px;height:16px;"></i></button>
+                    </div>
+                    </div>
+                </div>
+
+                <!-- ZAKŁADKA: CAERLEON -->
+                <div class="tab-content" id="tab-caerleon">
+                    <div class="table-card card">
+                        <div class="table-header-row">
+                            <div class="table-info">
+                                <h3>Ceny w Caerleon</h3>
+                                <p>Przedmioty przechwycone na rynku w Caerleon</p>
+                            </div>
+                            <button class="btn btn-sm btn-dark btn-clear-city" data-city="3005">
+                                <i data-lucide="trash-2" class="btn-icon"></i>
+                                Wyczyść
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="city-prices-table">
+                                <thead>
+                                    <tr>
+                                        <th>Przedmiot</th>
+                                        <th>Cena</th>
+                                        <th>Ilość</th>
+                                        <th>Jakość</th>
+                                        <th>Czas Aktualizacji</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="body-prices-3005">
+                                    <tr>
+                                        <td colspan="4" class="table-placeholder">
+                                            <div class="placeholder-content">
+                                                <i data-lucide="skull" class="placeholder-icon"></i>
+                                                <p>Oczekiwanie na dane z Caerleon... Otwórz tablicę rynku w Caerleon.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    <div class="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px;">
+                        <button id="btn-prev-body-prices-3005" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;"><i data-lucide="chevron-left" style="width:16px;height:16px;"></i> Poprzednia</button>
+                        <span id="indicator-body-prices-3005" style="font-weight: bold; color: var(--text-primary);">Strona 1 z 1</span>
+                        <button id="btn-next-body-prices-3005" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;">Następna <i data-lucide="chevron-right" style="width:16px;height:16px;"></i></button>
+                    </div>
+                    </div>
+                    
+                    <div class="table-card card" style="margin-top: 20px;">
+                        <div class="table-header-row">
+                            <div class="table-info">
+                                <h3>Kalkulator Transportu: Caerleon → Czarny Rynek</h3>
+                                <p>Wyliczenia zysków ze sprzedaży tych przedmiotów na Czarnym Rynku (Caerleon)</p>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="city-profit-table">
+                                <thead>
+                                    <tr>
+                                        <th>Przedmiot</th>
+                                        <th class="city-price-header">Cena w mieście</th>
+                                        <th>Ilość</th>
+                                        <th>Cena BM (Caerleon)</th>
+                                        <th>Podatek 8%</th>
+                                        <th>Zysk Netto</th>
+                                        <th>ROI %</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="body-profit-3005">
+                                    <tr>
+                                        <td colspan="6" class="table-placeholder">
+                                            <div class="placeholder-content">
+                                                <i data-lucide="trending-up" class="placeholder-icon"></i>
+                                                <p>Brak danych do wyliczenia zysku. Wyszukaj przedmioty w Caerleon oraz na Czarnym Rynku.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    <div class="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px;">
+                        <button id="btn-prev-body-profit-3005" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;"><i data-lucide="chevron-left" style="width:16px;height:16px;"></i> Poprzednia</button>
+                        <span id="indicator-body-profit-3005" style="font-weight: bold; color: var(--text-primary);">Strona 1 z 1</span>
+                        <button id="btn-next-body-profit-3005" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;">Następna <i data-lucide="chevron-right" style="width:16px;height:16px;"></i></button>
+                    </div>
+                    </div>
+                </div>
+
+                <!-- ZAKŁADKA: BRECILIEN -->
+                <div class="tab-content" id="tab-brecilien">
+                    <div class="table-card card">
+                        <div class="table-header-row">
+                            <div class="table-info">
+                                <h3>Ceny w Brecilien</h3>
+                                <p>Przedmioty przechwycone na rynku w Brecilien</p>
+                            </div>
+                            <button class="btn btn-sm btn-dark btn-clear-city" data-city="5003">
+                                <i data-lucide="trash-2" class="btn-icon"></i>
+                                Wyczyść
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="city-prices-table">
+                                <thead>
+                                    <tr>
+                                        <th>Przedmiot</th>
+                                        <th>Jakość</th>
+                                        <th>Cena rynkowa</th>
+                                        <th>Czas zapisu</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="body-prices-5003">
+                                    <tr>
+                                        <td colspan="4" class="table-placeholder">
+                                            <div class="placeholder-content">
+                                                <i data-lucide="sparkles" class="placeholder-icon"></i>
+                                                <p>Oczekiwanie na dane z Brecilien... Otwórz tablicę rynku w Brecilien.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    <div class="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px;">
+                        <button id="btn-prev-body-prices-5003" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;"><i data-lucide="chevron-left" style="width:16px;height:16px;"></i> Poprzednia</button>
+                        <span id="indicator-body-prices-5003" style="font-weight: bold; color: var(--text-primary);">Strona 1 z 1</span>
+                        <button id="btn-next-body-prices-5003" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;">Następna <i data-lucide="chevron-right" style="width:16px;height:16px;"></i></button>
+                    </div>
+                    </div>
+                    
+                    <div class="table-card card" style="margin-top: 20px;">
+                        <div class="table-header-row">
+                            <div class="table-info">
+                                <h3>Kalkulator Transportu: Brecilien → Czarny Rynek</h3>
+                                <p>Wyliczenia zysków ze sprzedaży tych przedmiotów na Czarnym Rynku (Caerleon)</p>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="city-profit-table">
+                                <thead>
+                                    <tr>
+                                        <th>Przedmiot</th>
+                                        <th>Cena w Brecilien</th>
+                                        <th>Cena BM (Caerleon)</th>
+                                        <th>Podatek (BM)</th>
+                                        <th>Zysk Netto</th>
+                                        <th>ROI %</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="body-profit-5003">
+                                    <tr>
+                                        <td colspan="6" class="table-placeholder">
+                                            <div class="placeholder-content">
+                                                <i data-lucide="trending-up" class="placeholder-icon"></i>
+                                                <p>Brak danych do wyliczenia zysku. Wyszukaj przedmioty w Brecilien oraz na Czarnym Rynku.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    <div class="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px;">
+                        <button id="btn-prev-body-profit-5003" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;"><i data-lucide="chevron-left" style="width:16px;height:16px;"></i> Poprzednia</button>
+                        <span id="indicator-body-profit-5003" style="font-weight: bold; color: var(--text-primary);">Strona 1 z 1</span>
+                        <button id="btn-next-body-profit-5003" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;">Następna <i data-lucide="chevron-right" style="width:16px;height:16px;"></i></button>
+                    </div>
+                    </div>
+                </div>
+
+                <!-- ZAKŁADKA: KALKULATOR PROFITU -->
+                <div class="tab-content" id="tab-calculator">
+
+                <div class="filters-card card">
+                    <div class="filters-grid">
+                        <div class="filter-item">
+                            <label for="filter-search">Wyszukaj przedmiot</label>
+                            <div class="input-wrapper">
+                                <i data-lucide="search" class="input-icon"></i>
+                                <input type="text" id="filter-search" placeholder="np. Torba, T5, Peleryna...">
+                            </div>
+                        </div>
+
+                        <div class="filter-item">
+                            <label for="filter-city">Kupuję w mieście</label>
+                            <div class="select-wrapper">
+                                <select id="filter-city">
+                                    <option value="all">Wszystkie Miasta</option>
+                                    <option value="3008">Lymhurst</option>
+                                    <option value="2004">Fort Sterling</option>
+                                    <option value="1002">Thetford</option>
+                                    <option value="3002">Martlock</option>
+                                    <option value="1004">Bridgewatch</option>
+                                    <option value="3005">Caerleon</option>
+                                    <option value="5003">Brecilien</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="filter-item">
+                            <label for="filter-tier">Poziom (Tier)</label>
+                            <div class="select-wrapper">
+                                <select id="filter-tier">
+                                    <option value="all">Dowolny Tier</option>
+                                    <option value="T4">Tier 4</option>
+                                    <option value="T5">Tier 5</option>
+                                    <option value="T6">Tier 6</option>
+                                    <option value="T7">Tier 7</option>
+                                    <option value="T8">Tier 8</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="filter-item">
+                            <label for="filter-enchantment">Zaklęcie (.0 - .4)</label>
+                            <div class="select-wrapper">
+                                <select id="filter-enchantment">
+                                    <option value="all">Dowolne Zaklęcie</option>
+                                    <option value="0">.0 (Czysty)</option>
+                                    <option value="1">.1 (Zielony)</option>
+                                    <option value="2">.2 (Niebieski)</option>
+                                    <option value="3">.3 (Fioletowy)</option>
+                                    <option value="4">.4 (Złoty)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="filter-item">
+                            <label for="filter-quality">Jakość</label>
+                            <div class="select-wrapper">
+                                <select id="filter-quality">
+                                    <option value="all">Dowolna Jakość</option>
+                                    <option value="1">Normalna</option>
+                                    <option value="2">Dobra</option>
+                                    <option value="3">Wybitna</option>
+                                    <option value="4">Doskonała</option>
+                                    <option value="5">Arcydzieło</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="filter-item">
+                            <label for="filter-sort">Sortuj według</label>
+                            <div class="select-wrapper">
+                                <select id="filter-sort">
+                                    <option value="profit">Zysk Netto (1 szt - od najwyższego)</option>
+                                    <option value="total_profit">Zysk Łączny (Z całego zlecenia)</option>
+                                    <option value="roi">ROI % (Zwrot z inwestycji)</option>
+                                    <option value="amount">Ilość łączna (Dostępność)</option>
+                                    <option value="age">Wiek danych (Najnowsze pierwsze)</option>
+                                    <option value="name">Nazwa przedmiotu (A-Z)</option>
+                                    <option value="blackmarket">Cena Czarnego Rynku</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TABELA PROFITU -->
+                <div class="table-card card">
+                    <div class="table-header-row">
+                        <div class="table-info">
+                            <h3>Tabela Analizy Profitów</h3>
+                            <p>Kupujesz w miastach królewskich $\rightarrow$ transportujesz i sprzedajesz na Czarnym Rynku (Caerleon)</p>
+                        </div>
+                        <div class="table-legend">
+                            <span class="legend-item"><span class="badge badge-profit">Zysk Netto</span> Uwzględnia 8% podatku BM</span>
+                        </div>
+                    </div>
+                    
+                    <!-- ZAKŁADKI KATEGORII SPRZEDAŻY BM -->
+                    <div class="bm-mode-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border, #333); padding-bottom: 0.5rem;">
+                        <button class="bm-mode-btn active" data-bm-mode="buy" style="background: none; border: none; color: var(--text, #fff); font-weight: bold; padding: 0.6rem 1.2rem; cursor: pointer; border-bottom: 2px solid var(--primary, #5151e5); transition: all 0.2s; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i data-lucide="zap" style="width: 16px; height: 16px;"></i>
+                            Szybka Sprzedaż (Instant Sell)
+                        </button>
+                        <button class="bm-mode-btn" data-bm-mode="sell" style="background: none; border: none; color: var(--text-muted, #aaa); font-weight: bold; padding: 0.6rem 1.2rem; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i data-lucide="clipboard-list" style="width: 16px; height: 16px;"></i>
+                            Zlecenie Sprzedaży (Sell Order)
+                        </button>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table id="profit-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;"></th>
+                                    <th class="sortable" data-sort="name">Przedmiot <i data-lucide="chevrons-up-down" class="sort-icon"></i></th>
+                                    <th class="sortable" data-sort="profit">Kupno (Najlepsze) <i data-lucide="chevrons-up-down" class="sort-icon"></i></th>
+                                    <th class="sortable" data-sort="blackmarket">Sprzedaż (BM Caerleon) <i data-lucide="chevrons-up-down" class="sort-icon"></i></th>
+                                    <th class="sortable" data-sort="amount">Ilość łączna <i data-lucide="chevrons-up-down" class="sort-icon"></i></th>
+                                    <th>Koszty (Podatek+Opłata)</th>
+                                    <th class="sortable" data-sort="profit">Zysk Netto (1 szt) <i data-lucide="chevrons-up-down" class="sort-icon"></i></th>
+                                    <th class="sortable" data-sort="total_profit">Zysk Łączny <i data-lucide="chevrons-up-down" class="sort-icon"></i></th>
+                                    <th class="sortable" data-sort="roi">ROI % <i data-lucide="chevrons-up-down" class="sort-icon"></i></th>
+                                    <th class="sortable" data-sort="age">Wiek Danych <i data-lucide="chevrons-up-down" class="sort-icon"></i></th>
+                                </tr>
+                            </thead>
+                            <tbody id="profit-table-body">
+                                <tr>
+                                    <td colspan="10" class="table-placeholder">
+                                        <div class="placeholder-content">
+                                            <i data-lucide="database-backup" class="placeholder-icon"></i>
+                                            <p>Brak danych rynkowych. Kliknij <strong>"Synchronizuj API"</strong> powyżej, aby natychmiast załadować ceny rynkowe społeczności!</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- KONTROLKI PAGINACJI -->
+                    <div class="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px;">
+                        <button id="btn-page-prev" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;"><i data-lucide="chevron-left" style="width:16px;height:16px;"></i> Poprzednia</button>
+                        <span id="page-indicator" style="font-weight: bold; color: var(--text);">Strona 1 z 1</span>
+                        <button id="btn-page-next" class="btn btn-sm btn-dark" style="display: flex; align-items: center; gap: 5px;">Następna <i data-lucide="chevron-right" style="width:16px;height:16px;"></i></button>
+                    </div>
+                </div>
+                </div><!-- /tab-calculator -->
+
+                <!-- ZAKŁADKA: PODSUMOWANIE INWESTYCJI -->
+                <div class="tab-content" id="tab-investment-summary">
+                    <div class="table-card card">
+                        <div class="table-header-row" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                            <div class="table-info">
+                                <h3>Podsumowanie Inwestycji (Koszyk)</h3>
+                                <p>Podliczenie kapitału potrzebnego na zakup przedmiotów <strong>aktualnie widocznych w Kalkulatorze Profitu</strong>.</p>
+                            </div>
+                            <div class="filter-item">
+                                <label style="color: var(--color-accent); font-weight: bold; font-size: 0.85rem; margin-right: 10px;">Filtruj wg Miasta:</label>
+                                <select id="filter-summary-city" style="padding: 6px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--color-accent); color: #fff; border-radius: 4px; font-size: 0.85rem;">
+                                    <option value="all">Wszystkie Miasta</option>
+                                    <option value="3008">Lymhurst</option>
+                                    <option value="2004">Fort Sterling</option>
+                                    <option value="1002">Thetford</option>
+                                    <option value="3002">Martlock</option>
+                                    <option value="1004">Bridgewatch</option>
+                                    <option value="5003">Brecilien</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- KAFELEK: GLOBALNY KOSZYK -->
+                        <div style="display: flex; gap: 15px; margin-bottom: 25px;">
+                            <div class="stat-box" style="flex: 1; border-left: 4px solid var(--roi-high-border);">
+                                <h4>Całkowita Inwestycja (Koszt)</h4>
+                                <div id="inv-total-cost" class="stat-value" style="color: #ffaa00;">0</div>
+                            </div>
+                            <div class="stat-box" style="flex: 1; border-left: 4px solid var(--success);">
+                                <h4>Szacowany Zysk Netto</h4>
+                                <div id="inv-total-profit" class="stat-value profit-plus">0</div>
+                            </div>
+                            <div class="stat-box" style="flex: 1; border-left: 4px solid var(--border);">
+                                <h4>Średnie ROI</h4>
+                                <div id="inv-total-roi" class="stat-value">0%</div>
+                            </div>
+                        </div>
+
+                        <!-- KOSZYK WG MIAST -->
+                        <h4 style="margin-bottom: 10px; color: var(--text); font-weight: bold; font-family: var(--font-primary);">Kapitał na Miasta Królewskie</h4>
+                        <div class="table-responsive" style="margin-bottom: 30px;">
+                            <table class="city-prices-table" id="inv-city-table">
+                                <thead>
+                                    <tr>
+                                        <th onclick="sortInvTable('city', 'name')" style="cursor: pointer;">Miasto <i data-lucide="chevrons-up-down" style="width: 12px; display: inline-block;"></i></th>
+                                        <th onclick="sortInvTable('city', 'cost')" style="cursor: pointer;">Koszt Zakupu <i data-lucide="chevrons-up-down" style="width: 12px; display: inline-block;"></i></th>
+                                        <th onclick="sortInvTable('city', 'profit')" style="cursor: pointer;">Szacowany Zysk <i data-lucide="chevrons-up-down" style="width: 12px; display: inline-block;"></i></th>
+                                        <th onclick="sortInvTable('city', 'roi')" style="cursor: pointer;">Średnie ROI % <i data-lucide="chevrons-up-down" style="width: 12px; display: inline-block;"></i></th>
+                                        <th onclick="sortInvTable('city', 'amount')" style="cursor: pointer;">Sztuki <i data-lucide="chevrons-up-down" style="width: 12px; display: inline-block;"></i></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inv-city-body">
+                                    <!-- Renderowane dynamicznie -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- KOSZYK WG PRZEDMIOTÓW (Ze szczegółami Tieru, Zaklęcia i Jakości) -->
+                        <h4 style="margin-bottom: 10px; color: var(--text); font-weight: bold; font-family: var(--font-primary);">Szczegółowy Koszyk Przedmiotów</h4>
+                        <div class="table-responsive">
+                            <table class="city-prices-table" id="inv-item-table">
+                                <thead>
+                                    <tr>
+                                        <th onclick="sortInvTable('item', 'name')" style="cursor: pointer;">Przedmiot <i data-lucide="chevrons-up-down" style="width: 12px; display: inline-block;"></i></th>
+                                        <th onclick="sortInvTable('item', 'qualityText')" style="cursor: pointer;">Jakość <i data-lucide="chevrons-up-down" style="width: 12px; display: inline-block;"></i></th>
+                                        <th onclick="sortInvTable('item', 'cityName')" style="cursor: pointer;">Miasto Zakupu <i data-lucide="chevrons-up-down" style="width: 12px; display: inline-block;"></i></th>
+                                        <th onclick="sortInvTable('item', 'cost')" style="cursor: pointer;">Koszt Zakupu <i data-lucide="chevrons-up-down" style="width: 12px; display: inline-block;"></i></th>
+                                        <th onclick="sortInvTable('item', 'profit')" style="cursor: pointer;">Szacowany Zysk <i data-lucide="chevrons-up-down" style="width: 12px; display: inline-block;"></i></th>
+                                        <th onclick="sortInvTable('item', 'roi')" style="cursor: pointer;">ROI % <i data-lucide="chevrons-up-down" style="width: 12px; display: inline-block;"></i></th>
+                                        <th onclick="sortInvTable('item', 'amount')" style="cursor: pointer;">Sztuki <i data-lucide="chevrons-up-down" style="width: 12px; display: inline-block;"></i></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inv-item-body">
+                                    <!-- Renderowane dynamicznie -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div><!-- /tab-investment-summary -->
+
+                <!-- ZAKŁADKA: REFINING -->
+                <div class="tab-content" id="tab-refining">
+                    <div class="table-card card">
+                        <div class="table-header-row" style="margin-bottom: 20px;">
+                            <div class="table-info">
+                                <h3>Kalkulator Refiningu (Przetwarzanie)</h3>
+                                <p>Oblicz zysk z przetwarzania surowców z uwzględnieniem zwrotu (RRR) i Focusa.</p>
+                            </div>
+                            <div style="display: flex; gap: 15px; align-items: center;">
+                                <div class="filter-item">
+                                    <label>Miasto (Bonus)</label>
+                                    <select id="refining-city" style="padding: 5px 10px; font-size: 0.85rem;">
+                                        <option value="none">Brak (15.2%)</option>
+                                        <option value="lymhurst">Lymhurst (Drewno)</option>
+                                        <option value="thetford">Thetford (Ruda)</option>
+                                        <option value="martlock">Martlock (Skóra)</option>
+                                        <option value="fort-sterling">Fort Sterling (Włókno)</option>
+                                        <option value="bridgewatch">Bridgewatch (Kamień)</option>
+                                    </select>
+                                </div>
+                                <div class="filter-item">
+                                    <label>Koszt Stanowiska (Fee)</label>
+                                    <div class="input-wrapper" style="width: 100px;">
+                                        <input type="number" id="refining-station-fee" value="500" step="100" min="0" style="padding: 5px 10px; font-size: 0.85rem; width: 100%; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: #fff; border-radius: 4px;">
+                                    </div>
+                                </div>
+                                <div class="filter-item">
+                                    <label>Użyj Focusa</label>
+                                    <label class="switch">
+                                        <input type="checkbox" id="refining-focus">
+                                        <span class="slider round"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="city-prices-table" id="refining-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;"></th>
+                                        <th>Produkt Końcowy</th>
+                                        <th>Tier</th>
+                                        <th>Cena Wyniku (Tu)</th>
+                                        <th>Zysk Netto</th>
+                                        <th>ROI %</th>
+                                        <th>Najlepsze Sourcing</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="refining-body">
+                                    <tr>
+                                        <td colspan="8" class="table-placeholder">
+                                            <div class="placeholder-content">
+                                                <i data-lucide="zap" class="placeholder-icon"></i>
+                                                <p>Skanuj tablicę rynkową z surowcami, aby zobaczyć wyliczenia.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            <aside class="side-panel">
+                <!-- KONFIGURACJA SNIFFERA -->
+                <div class="settings-card card" style="border-left: 4px solid var(--color-accent);">
+                    <div class="section-title-row">
+                        <i data-lucide="activity" class="title-icon" style="color: var(--color-accent);"></i>
+                        <h3>Sniffer & Sieć</h3>
+                    </div>
+                    <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 10px;">
+                        <div class="setting-info">
+                            <span class="setting-name">Karta Sieciowa</span>
+                            <span class="setting-desc">Wybierz kartę, na której grasz w Albiona</span>
+                        </div>
+                        <div style="display: flex; gap: 8px; width: 100%;">
+                            <select id="select-interface" style="flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: #fff; padding: 6px; border-radius: 4px; font-size: 0.8rem;">
+                                <option value="">Wyszukiwanie kart...</option>
+                            </select>
+                            <button id="btn-refresh-interfaces" class="btn btn-sm btn-dark" title="Odśwież listę kart">
+                                <i data-lucide="refresh-cw" style="width: 14px;"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 10px;">
+                        <div class="setting-info">
+                            <span class="setting-name">Filtrowanie Jakości</span>
+                            <span class="setting-desc">Pokazuj tylko wybraną jakość przedmiotów</span>
+                        </div>
+                        <select id="sniffer-filter-quality" style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: #fff; padding: 6px; border-radius: 4px; font-size: 0.8rem;">
+                            <option value="all">Wszystkie</option>
+                            <option value="1">Normal</option>
+                            <option value="2">Good</option>
+                            <option value="3">Outstanding</option>
+                            <option value="4">Excellent</option>
+                            <option value="5">Masterpiece</option>
+                        </select>
+                    </div>
+                    <div id="sniffer-status-box" style="margin-top: 10px; padding: 8px; background: rgba(0,0,0,0.15); border-radius: 4px; font-size: 0.75rem; border: 1px solid rgba(255,255,255,0.05);">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <span style="color: var(--text-secondary);">Status:</span>
+                            <span id="sniffer-status-text" style="color: var(--color-success); font-weight: bold;">Nasłuchiwanie...</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: var(--text-secondary);">Pakiety:</span>
+                            <span id="sniffer-packet-count" style="font-family: var(--font-mono); color: var(--color-accent);">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- USTAWIENIA TRANZAKCJI -->
+                <div class="settings-card card">
+                    <div class="section-title-row">
+                        <i data-lucide="settings" class="title-icon"></i>
+                        <h3>Ustawienia Handlowe</h3>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <span class="setting-name">Konto Premium w grze</span>
+                            <span class="setting-desc">Zmniejsza podatek rynkowy kupna z 8% na 4%</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-premium" checked>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <span class="setting-name">Zlecenie kupna (Buy Order)</span>
+                            <span class="setting-desc">Dodatkowy 1% opłaty instalacyjnej w miastach</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-buy-order">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+
+                    <div class="tax-info-box">
+                        <div class="tax-item">
+                            <span>Podatek Czarnego Rynku:</span>
+                            <span class="tax-val">8% (Zlecenie kupna BM)</span>
+                        </div>
+                        <div class="tax-item">
+                            <span>Podatek Miasta Królewskiego:</span>
+                            <span id="royal-tax-val" class="tax-val">4% (Premium)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KONSOLA STRUMIENIA PAKIETÓW (Hacker-style) -->
+                <div class="console-card card">
+                    <div class="console-header">
+                        <div class="console-title">
+                            <span class="terminal-dot red"></span>
+                            <span class="terminal-dot yellow"></span>
+                            <span class="terminal-dot green"></span>
+                            <h4>KONSOLA PAKIETÓW NA ŻYWO</h4>
+                        </div>
+                        <span class="badge badge-live">LIVE</span>
+                    </div>
+                    <div class="console-body" id="console-logs" style="height: 200px; overflow-y: auto; font-family: 'Courier Prime', monospace; font-size: 0.8rem;">
+                        <div class="console-line system">[SYSTEM] Inicjalizacja konsoli nasłuchu...</div>
+                        <div class="console-line system">[SYSTEM] Gotowy na pakiety sieciowe z portu UDP 5056.</div>
+                        <div class="console-line info">[INFO] Jeśli sniffer nie reaguje, upewnij się, że wybrałeś właściwą kartę sieciową powyżej.</div>
+                    </div>
+                    <div class="console-footer">
+                        <button id="btn-clear-console" class="btn btn-sm btn-dark">Wyczyść logi</button>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- FOOTER: Credits -->
+        <footer class="app-footer">
+            <p>&copy; 2026 Albion Market Profit Calculator. Stworzone z pasją do PvP i transportu.</p>
+            <p class="footer-note">Uwaga: Narzędzie analizuje wyłącznie pakiety przychodzące (sniffing), co jest niewykrywalne i w 100% bezpieczne dla Twojego konta gry.</p>
+        </footer>
+    </div>
+
+    <!-- Druid Mascot (Interaktywny) -->
+    <div class="wizard-mascot-container" id="wizard-container">
+        <!-- Dymek z poradą -->
+        <div class="wizard-bubble" id="wizard-bubble">
+            <button class="wizard-bubble-close" onclick="closeWizardBubble()">&times;</button>
+            <div class="wizard-bubble-title">
+                <i data-lucide="leaf" style="width: 14px; height: 14px;"></i>
+                Mądrość Druida
+            </div>
+            <div class="wizard-bubble-text" id="wizard-bubble-text"></div>
+        </div>
+        <!-- Menu -->
+        <div class="wizard-menu" id="wizard-menu">
+            <button class="wizard-menu-item" onclick="wizardAction('tip')">
+                <i data-lucide="leaf"></i> Porada Druida
+            </button>
+            <button class="wizard-menu-item" onclick="wizardAction('summary')">
+                <i data-lucide="bar-chart-3"></i> Stan Natury
+            </button>
+            <div class="wizard-menu-sep"></div>
+            <button class="wizard-menu-item" onclick="wizardAction('lucky')">
+                <i data-lucide="dice-3"></i> Dar Lasu
+            </button>
+            <button class="wizard-menu-item" onclick="wizardAction('quote')">
+                <i data-lucide="quote"></i> Szept Puszczy
+            </button>
+            <div class="wizard-menu-sep"></div>
+            <button class="wizard-menu-item" onclick="wizardAction('roche')">
+                <i data-lucide="shield"></i> Vernon Roche
+            </button>
+            <button class="wizard-menu-item" onclick="wizardAction('iorweth')">
+                <i data-lucide="swords"></i> Iorweth
+            </button>
+            <button class="wizard-menu-item" onclick="wizardAction('fraszka')">
+                <i data-lucide="scroll"></i> Opowiedz mi fraszkę
+            </button>
+        </div>
+        <img src="druid_mascot.png?v=4" alt="Druid Mascot" class="wizard-mascot" id="wizard-img" onclick="toggleWizardMenu()" title="Kliknij Druida!">
+    </div>
+
+    <!-- Główny skrypt aplikacji -->
+    <script src="app.js?v=debug_force_1"></script>
+    <script>
+        // Inicjalizacja ikon Lucide po załadowaniu HTML
+        lucide.createIcons();
+    </script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+# .gitignore
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.bin
+*.out
+albion-market
+
+# Local databases
+prices_db.json
+prices_db_eu.json
+prices_db_na.json
+
+# IDEs
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
